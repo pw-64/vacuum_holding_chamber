@@ -1,6 +1,9 @@
 // PINS
 const int pin_vacuum_sensor = A15;
-/// vacuum level bar chart
+const int pin_handle_position_switch = 2;
+const int pin_vent_button = 3;
+const int pin_pump_button = 4;
+// vacuum level bar chart
 const int pin_led_1 = 22;
 const int pin_led_2 = 23;
 const int pin_led_3 = 24;
@@ -31,8 +34,23 @@ const int pin_led_27 = 48;
 const int pin_led_28 = 49;
 const int pin_led_29 = 50;
 const int pin_led_30 = 51;
+// pump & valves
+const int pin_scroll_pump_relay = 8;
+const int pin_vent_valve = 9;
+const int pin_pump_trigger = 11;
+const int pin_pump_hold = 10;
 
 int vacuum_sensor_value; // hold the value read from vacuum sensor pin
+
+bool do_auto_pump_cycle = false;
+
+#define HandleOpenPosition digitalRead(pin_handle_position_switch)
+#define VentButtonPressed !digitalRead(pin_vent_button)
+#define PumpButtonPressed !digitalRead(pin_pump_button)
+
+#define VACUUM analogRead(pin_vacuum_sensor)
+
+#define DEBUG ON
 
 /*
 Mapping voltage to digital reading
@@ -56,9 +74,23 @@ step size = (522 - 389) / 14 = 9.5
 */
 
 void setup() {
-  // Serial.begin(9600); // open serial connection (debugging)
+  #ifdef DEBUG
+    Serial.begin(9600); // open serial connection (debugging)
+  #endif
 
   // configure I/O
+  pinMode(pin_vacuum_sensor, INPUT);
+  pinMode(pin_handle_position_switch, INPUT);
+  pinMode(pin_vent_button, INPUT);
+  pinMode(pin_pump_button, INPUT);
+  pinMode(pin_scroll_pump_relay, OUTPUT);
+  pinMode(pin_vent_valve, OUTPUT);
+  pinMode(pin_pump_trigger, OUTPUT);
+  pinMode(pin_pump_hold, OUTPUT);
+  digitalWrite(pin_scroll_pump_relay, LOW);
+  digitalWrite(pin_vent_valve, LOW);
+  digitalWrite(pin_pump_trigger, LOW);
+  digitalWrite(pin_pump_hold, LOW);
   pinMode(pin_led_1, OUTPUT);
   pinMode(pin_led_2, OUTPUT);
   pinMode(pin_led_3, OUTPUT);
@@ -91,11 +123,12 @@ void setup() {
   pinMode(pin_led_30, OUTPUT);
 }
 
-void loop() {
-  vacuum_sensor_value = analogRead(pin_vacuum_sensor); // read vacuum value
-  // Serial.println(vacuum_sensor_value); // output value to console
+void UpdateVacuumGraph() {
+  vacuum_sensor_value = VACUUM; // read vacuum value
+  #ifdef DEBUG
+    Serial.println(vacuum_sensor_value); // output value to console
+  #endif
 
-  // update bar chart
   // coarse
   digitalWrite(pin_led_1,  522 + 19.8 * 15 < vacuum_sensor_value);
   digitalWrite(pin_led_2,  (522 + 19.8 * 14 < vacuum_sensor_value) && (vacuum_sensor_value <= 522 + 19.8 * 15));
@@ -128,6 +161,64 @@ void loop() {
   digitalWrite(pin_led_28, (389 + 9.5 * 2  < vacuum_sensor_value) && (vacuum_sensor_value <= 389 + 9.5 * 3));
   digitalWrite(pin_led_29, (389 + 9.5 * 1  < vacuum_sensor_value) && (vacuum_sensor_value <= 389 + 9.5 * 2));
   digitalWrite(pin_led_30, (389            < vacuum_sensor_value) && (vacuum_sensor_value <= 389 + 9.5 * 1));
+}
 
-  delay(500);
+void loop() {
+  UpdateVacuumGraph();
+
+  if (VentButtonPressed && VACUUM < 845) {
+    digitalWrite(pin_pump_hold, LOW);
+    delay(500);
+    digitalWrite(pin_scroll_pump_relay, LOW);
+    delay(1000);
+    digitalWrite(pin_vent_valve, HIGH);
+    
+    // 4.1v = (4.1 / 5) * 1023 = 855
+    while (VACUUM < 845) {
+      UpdateVacuumGraph();
+      delay(100);
+    }
+
+    digitalWrite(pin_vent_valve, LOW);
+    
+    do_auto_pump_cycle = false;
+  }
+
+  if (PumpButtonPressed && !HandleOpenPosition) {
+    digitalWrite(pin_pump_hold, HIGH);
+    delay(500);
+    digitalWrite(pin_pump_trigger, HIGH);
+    delay(500);
+    digitalWrite(pin_pump_trigger, LOW);
+    delay(500);
+    digitalWrite(pin_scroll_pump_relay, HIGH);
+
+    do_auto_pump_cycle = true;
+  }
+
+  if (do_auto_pump_cycle) {
+    /*
+    2.15v = 440: pump off
+    2.5v = 512: pump on
+    */
+
+    if (VACUUM >= 512) { // vacuum poor, pump on
+      digitalWrite(pin_scroll_pump_relay, HIGH);
+      delay(30000);
+      digitalWrite(pin_pump_hold, HIGH);
+      delay(500);
+      digitalWrite(pin_pump_trigger, HIGH);
+      delay(500);
+      digitalWrite(pin_pump_trigger, LOW);
+      delay(500);
+    }
+
+    if (VACUUM <= 440) { // vacuum good, pump off
+      digitalWrite(pin_pump_hold, LOW);
+      delay(500);
+      digitalWrite(pin_scroll_pump_relay, LOW);
+    }
+  }
+
+  delay(100);
 }
