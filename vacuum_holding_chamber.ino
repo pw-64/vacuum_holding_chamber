@@ -52,8 +52,9 @@ bool do_auto_pump_cycle = false;
 #define PumpButtonPressed !digitalRead(pin_pump_button)
 #define VacuumReading analogRead(pin_vacuum_sensor)
 
-#define DEBUG
-#define DEBUG_print_vacuum_reading
+// #define DEBUG
+// #define DEBUG_print_vacuum_reading
+// #define DEBUG_flow_messages
 
 /*
 Mapping voltage to digital reading
@@ -132,6 +133,7 @@ void setup() {
 
 void UpdateVacuumGraph() {
   vacuum_sensor_value = VacuumReading; // read vacuum value
+  
   #ifdef DEBUG_print_vacuum_reading
     Serial.println(vacuum_sensor_value); // output value to console
   #endif
@@ -174,6 +176,11 @@ void loop() {
   UpdateVacuumGraph();
 
   if (VentButtonPressed) {
+
+    #ifdef DEBUG_flow_messages
+      Serial.println("venting");
+    #endif
+
     digitalWrite(pin_venting_status_led, HIGH);
 
     digitalWrite(pin_pump_hold, LOW);
@@ -183,9 +190,17 @@ void loop() {
     digitalWrite(pin_vent_valve, HIGH);
     
     while (VacuumReading < 850) {
+      #ifdef DEBUG_flow_messages
+        Serial.println("waiting for vacuum < 850");
+      #endif
+
       UpdateVacuumGraph();
       delay(100);
     }
+
+    #ifdef DEBUG_flow_messages
+      Serial.println("start 25s vent extension");
+    #endif
 
     // make sure the door can open
     delay(25000);
@@ -195,13 +210,25 @@ void loop() {
     do_auto_pump_cycle = false;
     digitalWrite(pin_venting_status_led, LOW);
     digitalWrite(pin_auto_cycle_status_led, LOW);
+
+    #ifdef DEBUG_flow_messages
+      Serial.println("done venting");
+    #endif
   }
 
   if (PumpButtonPressed && !HandleOpenPosition) {
+    #ifdef DEBUG_flow_messages
+      Serial.println("pumping");
+    #endif
+
     do_auto_pump_cycle = true;
     digitalWrite(pin_auto_cycle_status_led, HIGH);
 
     if (VacuumReading > 800) {
+      #ifdef DEBUG_flow_messages
+        Serial.println("at air, venting the whole system");
+      #endif
+
       digitalWrite(pin_scroll_pump_relay, HIGH);
       delay(500);
       digitalWrite(pin_pump_hold, HIGH);
@@ -211,11 +238,20 @@ void loop() {
       digitalWrite(pin_pump_trigger, LOW);
 
       while (VacuumReading >= 440) {
+        #ifdef DEBUG_flow_messages
+          Serial.println("waiting for vacuum >= 440");
+        #endif
+
         UpdateVacuumGraph();
         delay(100);
       }
     }
   }
+
+  #ifdef DEBUG_flow_messages
+    Serial.print("auto pump cycle: ");
+    Serial.println(do_auto_pump_cycle);
+  #endif
 
   if (do_auto_pump_cycle) {
     /*
@@ -225,6 +261,10 @@ void loop() {
 
     // auto cycle - vacuum poor, pump on
     if (VacuumReading >= 512) {
+      #ifdef DEBUG_flow_messages
+        Serial.println("vacuum poor, pump on (+30s delay)");
+      #endif
+
       digitalWrite(pin_scroll_pump_relay, HIGH);
       delay(30000); // pump for 30s to remove air in the pipe, then open the valve so the chamber isnt flooded
       digitalWrite(pin_pump_hold, HIGH);
@@ -236,6 +276,10 @@ void loop() {
 
     // auto cycle - vacuum good, pump off
     if (VacuumReading <= 440) {
+      #ifdef DEBUG_flow_messages
+        Serial.println("vacuum good, pump off");
+      #endif
+
       digitalWrite(pin_pump_hold, LOW);
       delay(500);
       digitalWrite(pin_scroll_pump_relay, LOW);
