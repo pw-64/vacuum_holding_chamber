@@ -1,44 +1,47 @@
 // PINS
-const int pin_vacuum_sensor = A15;
-const int pin_handle_position_switch = 2;
-const int pin_vent_button = 3;
-const int pin_pump_button = 4;
+#define pin_vacuum_sensor A15
+#define pin_handle_position_switch 2
+#define pin_vent_button 3
+#define pin_pump_button 4
 // vacuum level bar chart
-const int pin_led_1 = 22;
-const int pin_led_2 = 23;
-const int pin_led_3 = 24;
-const int pin_led_4 = 25;
-const int pin_led_5 = 26;
-const int pin_led_6 = 27;
-const int pin_led_7 = 28;
-const int pin_led_8 = 29;
-const int pin_led_9 = 30;
-const int pin_led_10 = 31;
-const int pin_led_11 = 32;
-const int pin_led_12 = 33;
-const int pin_led_13 = 34;
-const int pin_led_14 = 35;
-const int pin_led_15 = 36;
-const int pin_led_16 = 37;
-const int pin_led_17 = 38;
-const int pin_led_18 = 39;
-const int pin_led_19 = 40;
-const int pin_led_20 = 41;
-const int pin_led_21 = 42;
-const int pin_led_22 = 43;
-const int pin_led_23 = 44;
-const int pin_led_24 = 45;
-const int pin_led_25 = 46;
-const int pin_led_26 = 47;
-const int pin_led_27 = 48;
-const int pin_led_28 = 49;
-const int pin_led_29 = 50;
-const int pin_led_30 = 51;
+#define pin_led_1 22
+#define pin_led_2 23
+#define pin_led_3 24
+#define pin_led_4 25
+#define pin_led_5 26
+#define pin_led_6 27
+#define pin_led_7 28
+#define pin_led_8 29
+#define pin_led_9 30
+#define pin_led_10 31
+#define pin_led_11 32
+#define pin_led_12 33
+#define pin_led_13 34
+#define pin_led_14 35
+#define pin_led_15 36
+#define pin_led_16 37
+#define pin_led_17 38
+#define pin_led_18 39
+#define pin_led_19 40
+#define pin_led_20 41
+#define pin_led_21 42
+#define pin_led_22 43
+#define pin_led_23 44
+#define pin_led_24 45
+#define pin_led_25 46
+#define pin_led_26 47
+#define pin_led_27 48
+#define pin_led_28 49
+#define pin_led_29 50
+#define pin_led_30 51
+// status LEDs
+#define pin_venting_status_led 6
+#define pin_auto_cycle_status_led 7
 // pump & valves
-const int pin_scroll_pump_relay = 8;
-const int pin_vent_valve = 9;
-const int pin_pump_trigger = 11;
-const int pin_pump_hold = 10;
+#define pin_scroll_pump_relay 8
+#define pin_vent_valve 9
+#define pin_pump_hold 10
+#define pin_pump_trigger 11
 
 int vacuum_sensor_value; // hold the value read from vacuum sensor pin
 
@@ -47,10 +50,10 @@ bool do_auto_pump_cycle = false;
 #define HandleOpenPosition digitalRead(pin_handle_position_switch)
 #define VentButtonPressed !digitalRead(pin_vent_button)
 #define PumpButtonPressed !digitalRead(pin_pump_button)
+#define VacuumReading analogRead(pin_vacuum_sensor)
 
-#define VACUUM analogRead(pin_vacuum_sensor)
-
-#define DEBUG ON
+#define DEBUG
+#define DEBUG_print_vacuum_reading
 
 /*
 Mapping voltage to digital reading
@@ -121,11 +124,15 @@ void setup() {
   pinMode(pin_led_28, OUTPUT);
   pinMode(pin_led_29, OUTPUT);
   pinMode(pin_led_30, OUTPUT);
+  pinMode(pin_venting_status_led, OUTPUT);
+  pinMode(pin_auto_cycle_status_led, OUTPUT);
+  digitalWrite(pin_venting_status_led, LOW);
+  digitalWrite(pin_auto_cycle_status_led, LOW);
 }
 
 void UpdateVacuumGraph() {
-  vacuum_sensor_value = VACUUM; // read vacuum value
-  #ifdef DEBUG
+  vacuum_sensor_value = VacuumReading; // read vacuum value
+  #ifdef DEBUG_print_vacuum_reading
     Serial.println(vacuum_sensor_value); // output value to console
   #endif
 
@@ -166,54 +173,69 @@ void UpdateVacuumGraph() {
 void loop() {
   UpdateVacuumGraph();
 
-  if (VentButtonPressed && VACUUM < 845) {
+  if (VentButtonPressed) {
+    digitalWrite(pin_venting_status_led, HIGH);
+
     digitalWrite(pin_pump_hold, LOW);
     delay(500);
     digitalWrite(pin_scroll_pump_relay, LOW);
     delay(1000);
     digitalWrite(pin_vent_valve, HIGH);
     
-    // 4.1v = (4.1 / 5) * 1023 = 855
-    while (VACUUM < 845) {
+    while (VacuumReading < 850) {
       UpdateVacuumGraph();
       delay(100);
     }
 
+    // make sure the door can open
+    delay(25000);
+
     digitalWrite(pin_vent_valve, LOW);
     
     do_auto_pump_cycle = false;
+    digitalWrite(pin_venting_status_led, LOW);
+    digitalWrite(pin_auto_cycle_status_led, LOW);
   }
 
   if (PumpButtonPressed && !HandleOpenPosition) {
-    digitalWrite(pin_pump_hold, HIGH);
-    delay(500);
-    digitalWrite(pin_pump_trigger, HIGH);
-    delay(500);
-    digitalWrite(pin_pump_trigger, LOW);
-    delay(500);
-    digitalWrite(pin_scroll_pump_relay, HIGH);
-
     do_auto_pump_cycle = true;
-  }
+    digitalWrite(pin_auto_cycle_status_led, HIGH);
 
-  if (do_auto_pump_cycle) {
-    /*
-    2.15v = 440: pump off
-    2.5v = 512: pump on
-    */
-
-    if (VACUUM >= 512) { // vacuum poor, pump on
+    if (VacuumReading > 800) {
       digitalWrite(pin_scroll_pump_relay, HIGH);
-      delay(30000);
+      delay(500);
       digitalWrite(pin_pump_hold, HIGH);
       delay(500);
       digitalWrite(pin_pump_trigger, HIGH);
       delay(500);
       digitalWrite(pin_pump_trigger, LOW);
+
+      while (VacuumReading >= 440) {
+        UpdateVacuumGraph();
+        delay(100);
+      }
+    }
+  }
+
+  if (do_auto_pump_cycle) {
+    /*
+    2.5v = 512: pump on
+    2.15v = 440: pump off
+    */
+
+    // auto cycle - vacuum poor, pump on
+    if (VacuumReading >= 512) {
+      digitalWrite(pin_scroll_pump_relay, HIGH);
+      delay(30000); // pump for 30s to remove air in the pipe, then open the valve so the chamber isnt flooded
+      digitalWrite(pin_pump_hold, HIGH);
       delay(500);
+      digitalWrite(pin_pump_trigger, HIGH);
+      delay(500);
+      digitalWrite(pin_pump_trigger, LOW);
     }
 
-    if (VACUUM <= 440) { // vacuum good, pump off
+    // auto cycle - vacuum good, pump off
+    if (VacuumReading <= 440) {
       digitalWrite(pin_pump_hold, LOW);
       delay(500);
       digitalWrite(pin_scroll_pump_relay, LOW);
