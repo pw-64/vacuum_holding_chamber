@@ -28,4 +28,4 @@ Since the vacuum level reduces logarithmically, it is reduced very quickly at fi
 Therefore, the coarse section has a large range per LED, and the fine section has a small range per LED to account for smaller changes.
 
 #
-This is to be used in combination with my HENRY project, for storing samples both before and after processing.
+This is to be used in combination with my [HENRY project](https://github.com/pw-64/HENRY-controller), for storing samples both before and after processing.
