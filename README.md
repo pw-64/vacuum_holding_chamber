@@ -18,7 +18,7 @@ graph TD
 
 ### Auto Pump Cycle
 The chamber is pumped to a strong vacuum.
-Over time, the vacuum slowly weakens (about half an hour from $10^{-2}$ to $10^{-1}$ bar).
+Over time, the vacuum slowly weakens.
 Once it reaches an upper threshold, the pump will evacuate the chamber back down to a strong vacuum.
 This will continue to cycle until power is lost or the user presses vent.
 
