@@ -131,14 +131,14 @@ step size = (921 - 522) / 16 = 24.9
 
 fine steps
 max: 2.55v = (2.55 / 5) * 1023 = 522
-min: 1.9v = (1.9 / 5) * 1023 = 389
+min: 2.1v = (2.1 / 5) * 1023 = 430
 steps = 14
-step size = (522 - 389) / 14 = 9.5
+step size = (522 - 430) / 14 = 6.6
 */
-#define CoarseStart 522
-#define CoarseStep 24.9
-#define FineStart 389
-#define FineStep 9.5
+#define CoarseStart 522  // coarse min
+#define CoarseStep  24.9 // coarse step size
+#define FineStart   430  // fine min
+#define FineStep    6.6  // fine step size
 
 void UpdateVacuumGraph() {
   vacuum_sensor_value = VacuumReading; // read vacuum value
