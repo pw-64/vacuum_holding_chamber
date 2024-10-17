@@ -200,7 +200,7 @@ void loop() {
     
     while (VacuumReading < 850) {
       #ifdef DEBUG_flow_messages
-        Serial.println("waiting for vacuum < 850");
+        Serial.println("waiting for vacuum > 850");
       #endif
 
       UpdateVacuumGraph();
@@ -246,9 +246,9 @@ void loop() {
       delay(500);
       digitalWrite(pin_pump_trigger, LOW);
 
-      while (VacuumReading >= 440) {
+      while (VacuumReading > 440) {
         #ifdef DEBUG_flow_messages
-          Serial.println("waiting for vacuum >= 440");
+          Serial.println("waiting for vacuum < 440");
         #endif
 
         UpdateVacuumGraph();
@@ -269,9 +269,9 @@ void loop() {
     */
 
     // auto cycle - vacuum poor, pump on
-    if (VacuumReading >= 512) {
+    if (VacuumReading > 512) {
       #ifdef DEBUG_flow_messages
-        Serial.println("vacuum poor, pump on (+30s delay)");
+        Serial.println("vacuum poor, pump on (30s delay)");
       #endif
 
       digitalWrite(pin_scroll_pump_relay, HIGH);
@@ -284,7 +284,7 @@ void loop() {
     }
 
     // auto cycle - vacuum good, pump off
-    if (VacuumReading <= 440) {
+    if (VacuumReading < 440) {
       #ifdef DEBUG_flow_messages
         Serial.println("vacuum good, pump off");
       #endif
