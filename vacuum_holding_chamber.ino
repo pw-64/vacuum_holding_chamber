@@ -1,3 +1,7 @@
+// #define DEBUG_enable
+// #define DEBUG_print_vacuum_reading
+// #define DEBUG_flow_messages
+
 // PINS
 #define pin_vacuum_sensor A15
 #define pin_handle_position_switch 2
@@ -52,33 +56,8 @@ bool do_auto_pump_cycle = false;
 #define PumpButtonPressed !digitalRead(pin_pump_button)
 #define VacuumReading analogRead(pin_vacuum_sensor)
 
-// #define DEBUG
-// #define DEBUG_print_vacuum_reading
-// #define DEBUG_flow_messages
-
-/*
-Mapping voltage to digital reading
-
-5v = 1023
-0v = 0
-
-(max - min) / steps = step size
-
-coarse steps
-max: 4.1v = (4.1 / 5) * 1023 = 839
-min: 2.55v = (2.55 / 5) * 1023 = 522
-steps = 16
-step size = (839 - 522) / 16 = 19.8
-
-fine steps
-max: 2.55v = (2.55 / 5) * 1023 = 522
-min: 1.9v = (1.9 / 5) * 1023 = 389
-steps = 14
-step size = (522 - 389) / 14 = 9.5
-*/
-
 void setup() {
-  #ifdef DEBUG
+  #ifdef DEBUG_enable
     Serial.begin(9600); // open serial connection (debugging)
   #endif
 
@@ -131,6 +110,36 @@ void setup() {
   digitalWrite(pin_auto_cycle_status_led, LOW);
 }
 
+/*
+Mapping voltage to digital reading
+
+5v = 1023
+0v = 0
+
+(max - min) / steps = step size
+*/
+
+// value is within the range of a step
+#define ValueInStepRange(input_value, min, step_size, step_count) (min + step_size * step_count < input_value) && (input_value <= min + step_size * (step_count + 1))
+
+/*
+coarse steps
+max: 4.2v = (4.2 / 5) * 1023 = 921
+min: 2.55v = (2.55 / 5) * 1023 = 522
+steps = 16
+step size = (921 - 522) / 16 = 24.9
+
+fine steps
+max: 2.55v = (2.55 / 5) * 1023 = 522
+min: 1.9v = (1.9 / 5) * 1023 = 389
+steps = 14
+step size = (522 - 389) / 14 = 9.5
+*/
+#define CoarseStart 522
+#define CoarseStep 24.9
+#define FineStart 389
+#define FineStep 9.5
+
 void UpdateVacuumGraph() {
   vacuum_sensor_value = VacuumReading; // read vacuum value
   
@@ -139,37 +148,37 @@ void UpdateVacuumGraph() {
   #endif
 
   // coarse
-  digitalWrite(pin_led_1,  522 + 19.8 * 15 < vacuum_sensor_value);
-  digitalWrite(pin_led_2,  (522 + 19.8 * 14 < vacuum_sensor_value) && (vacuum_sensor_value <= 522 + 19.8 * 15));
-  digitalWrite(pin_led_3,  (522 + 19.8 * 13 < vacuum_sensor_value) && (vacuum_sensor_value <= 522 + 19.8 * 14));
-  digitalWrite(pin_led_4,  (522 + 19.8 * 12 < vacuum_sensor_value) && (vacuum_sensor_value <= 522 + 19.8 * 13));
-  digitalWrite(pin_led_5,  (522 + 19.8 * 11 < vacuum_sensor_value) && (vacuum_sensor_value <= 522 + 19.8 * 12));
-  digitalWrite(pin_led_6,  (522 + 19.8 * 10 < vacuum_sensor_value) && (vacuum_sensor_value <= 522 + 19.8 * 11));
-  digitalWrite(pin_led_7,  (522 + 19.8 * 9  < vacuum_sensor_value) && (vacuum_sensor_value <= 522 + 19.8 * 10));
-  digitalWrite(pin_led_8,  (522 + 19.8 * 8  < vacuum_sensor_value) && (vacuum_sensor_value <= 522 + 19.8 * 9));
-  digitalWrite(pin_led_9,  (522 + 19.8 * 7  < vacuum_sensor_value) && (vacuum_sensor_value <= 522 + 19.8 * 8));
-  digitalWrite(pin_led_10, (522 + 19.8 * 6  < vacuum_sensor_value) && (vacuum_sensor_value <= 522 + 19.8 * 7));
-  digitalWrite(pin_led_11, (522 + 19.8 * 5  < vacuum_sensor_value) && (vacuum_sensor_value <= 522 + 19.8 * 6));
-  digitalWrite(pin_led_12, (522 + 19.8 * 4  < vacuum_sensor_value) && (vacuum_sensor_value <= 522 + 19.8 * 5));
-  digitalWrite(pin_led_13, (522 + 19.8 * 3  < vacuum_sensor_value) && (vacuum_sensor_value <= 522 + 19.8 * 4));
-  digitalWrite(pin_led_14, (522 + 19.8 * 2  < vacuum_sensor_value) && (vacuum_sensor_value <= 522 + 19.8 * 3));
-  digitalWrite(pin_led_15, (522 + 19.8 * 1  < vacuum_sensor_value) && (vacuum_sensor_value <= 522 + 19.8 * 2));
-  digitalWrite(pin_led_16, (522             < vacuum_sensor_value) && (vacuum_sensor_value <= 522 + 19.8 * 1));
+  digitalWrite(pin_led_1,  ValueInStepRange(vacuum_sensor_value, CoarseStart, CoarseStep, 15));
+  digitalWrite(pin_led_2,  ValueInStepRange(vacuum_sensor_value, CoarseStart, CoarseStep, 14));
+  digitalWrite(pin_led_3,  ValueInStepRange(vacuum_sensor_value, CoarseStart, CoarseStep, 13));
+  digitalWrite(pin_led_4,  ValueInStepRange(vacuum_sensor_value, CoarseStart, CoarseStep, 12));
+  digitalWrite(pin_led_5,  ValueInStepRange(vacuum_sensor_value, CoarseStart, CoarseStep, 11));
+  digitalWrite(pin_led_6,  ValueInStepRange(vacuum_sensor_value, CoarseStart, CoarseStep, 10));
+  digitalWrite(pin_led_7,  ValueInStepRange(vacuum_sensor_value, CoarseStart, CoarseStep, 9));
+  digitalWrite(pin_led_8,  ValueInStepRange(vacuum_sensor_value, CoarseStart, CoarseStep, 8));
+  digitalWrite(pin_led_9,  ValueInStepRange(vacuum_sensor_value, CoarseStart, CoarseStep, 7));
+  digitalWrite(pin_led_10, ValueInStepRange(vacuum_sensor_value, CoarseStart, CoarseStep, 6));
+  digitalWrite(pin_led_11, ValueInStepRange(vacuum_sensor_value, CoarseStart, CoarseStep, 5));
+  digitalWrite(pin_led_12, ValueInStepRange(vacuum_sensor_value, CoarseStart, CoarseStep, 4));
+  digitalWrite(pin_led_13, ValueInStepRange(vacuum_sensor_value, CoarseStart, CoarseStep, 3));
+  digitalWrite(pin_led_14, ValueInStepRange(vacuum_sensor_value, CoarseStart, CoarseStep, 2));
+  digitalWrite(pin_led_15, ValueInStepRange(vacuum_sensor_value, CoarseStart, CoarseStep, 1));
+  digitalWrite(pin_led_16, ValueInStepRange(vacuum_sensor_value, CoarseStart, CoarseStep, 0));
   // fine
-  digitalWrite(pin_led_17, (389 + 9.5 * 13 < vacuum_sensor_value) && (vacuum_sensor_value <= 389 + 9.5 * 14));
-  digitalWrite(pin_led_18, (389 + 9.5 * 12 < vacuum_sensor_value) && (vacuum_sensor_value <= 389 + 9.5 * 13));
-  digitalWrite(pin_led_19, (389 + 9.5 * 11 < vacuum_sensor_value) && (vacuum_sensor_value <= 389 + 9.5 * 12));
-  digitalWrite(pin_led_20, (389 + 9.5 * 10 < vacuum_sensor_value) && (vacuum_sensor_value <= 389 + 9.5 * 11));
-  digitalWrite(pin_led_21, (389 + 9.5 * 9  < vacuum_sensor_value) && (vacuum_sensor_value <= 389 + 9.5 * 10));
-  digitalWrite(pin_led_22, (389 + 9.5 * 8  < vacuum_sensor_value) && (vacuum_sensor_value <= 389 + 9.5 * 9));
-  digitalWrite(pin_led_23, (389 + 9.5 * 7  < vacuum_sensor_value) && (vacuum_sensor_value <= 389 + 9.5 * 8));
-  digitalWrite(pin_led_24, (389 + 9.5 * 6  < vacuum_sensor_value) && (vacuum_sensor_value <= 389 + 9.5 * 7));
-  digitalWrite(pin_led_25, (389 + 9.5 * 5  < vacuum_sensor_value) && (vacuum_sensor_value <= 389 + 9.5 * 6));
-  digitalWrite(pin_led_26, (389 + 9.5 * 4  < vacuum_sensor_value) && (vacuum_sensor_value <= 389 + 9.5 * 5));
-  digitalWrite(pin_led_27, (389 + 9.5 * 3  < vacuum_sensor_value) && (vacuum_sensor_value <= 389 + 9.5 * 4));
-  digitalWrite(pin_led_28, (389 + 9.5 * 2  < vacuum_sensor_value) && (vacuum_sensor_value <= 389 + 9.5 * 3));
-  digitalWrite(pin_led_29, (389 + 9.5 * 1  < vacuum_sensor_value) && (vacuum_sensor_value <= 389 + 9.5 * 2));
-  digitalWrite(pin_led_30, (389            < vacuum_sensor_value) && (vacuum_sensor_value <= 389 + 9.5 * 1));
+  digitalWrite(pin_led_17, ValueInStepRange(vacuum_sensor_value, FineStart, FineStep, 13));
+  digitalWrite(pin_led_18, ValueInStepRange(vacuum_sensor_value, FineStart, FineStep, 12));
+  digitalWrite(pin_led_19, ValueInStepRange(vacuum_sensor_value, FineStart, FineStep, 11));
+  digitalWrite(pin_led_20, ValueInStepRange(vacuum_sensor_value, FineStart, FineStep, 10));
+  digitalWrite(pin_led_21, ValueInStepRange(vacuum_sensor_value, FineStart, FineStep, 9));
+  digitalWrite(pin_led_22, ValueInStepRange(vacuum_sensor_value, FineStart, FineStep, 8));
+  digitalWrite(pin_led_23, ValueInStepRange(vacuum_sensor_value, FineStart, FineStep, 7));
+  digitalWrite(pin_led_24, ValueInStepRange(vacuum_sensor_value, FineStart, FineStep, 6));
+  digitalWrite(pin_led_25, ValueInStepRange(vacuum_sensor_value, FineStart, FineStep, 5));
+  digitalWrite(pin_led_26, ValueInStepRange(vacuum_sensor_value, FineStart, FineStep, 4));
+  digitalWrite(pin_led_27, ValueInStepRange(vacuum_sensor_value, FineStart, FineStep, 3));
+  digitalWrite(pin_led_28, ValueInStepRange(vacuum_sensor_value, FineStart, FineStep, 2));
+  digitalWrite(pin_led_29, ValueInStepRange(vacuum_sensor_value, FineStart, FineStep, 1));
+  digitalWrite(pin_led_30, ValueInStepRange(vacuum_sensor_value, FineStart, FineStep, 0));
 }
 
 void loop() {
